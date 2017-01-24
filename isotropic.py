@@ -60,11 +60,6 @@ import operator
 import pint
 import time
 import operator
-from slippy2 import boundary_layer2d
-from slippy2 import material_graph
-from slippy2 import spmesh
-from slippy2 import phase_function
-from unsupported.interfaces import markerLine2D
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
@@ -74,7 +69,7 @@ rank = comm.Get_rank()
 # In[2]:
 
 #####
-#Stubborn version number conflicts - need to figure out my Docker container runs an old version. For now...
+#Stubborn version number conflicts - For now...
 #####
 try:
     natsort.natsort = natsort.natsorted
@@ -617,7 +612,7 @@ materialVariable.data[:] = fn.branching.conditional( conditions ).evaluate(swarm
 figMat = glucifer.Figure( figsize=(1200,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 figMat.append( glucifer.objects.Points(swarm,materialVariable, pointSize=2.0) )
 figMat.append( glucifer.objects.Mesh(mesh))
-figMat.show()
+#figMat.show()
 
 
 # ## Rheology
@@ -864,7 +859,7 @@ figSinv = glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2
 figSinv .append( glucifer.objects.VectorArrows(mesh, velocityField, arrowHead=0.25, scaling=.075, resolutionI=32, resolutionJ=8) )
 
 figSinv .append( glucifer.objects.Points(swarm,strainRate_2ndInvariantFn, pointSize=2.0, valueRange=[1e-3, 5.]) )
-figSinv.show()
+#figSinv.show()
 
 
 # In[85]:
@@ -872,7 +867,7 @@ figSinv.show()
 figVisc = glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 
 figVisc.append( glucifer.objects.Points(swarm, yieldingViscosityFn, pointSize=2.0, logScale=True,valueRange=[0.01, 10] ) )
-figVisc.show()
+#figVisc.show()
 
 
 # In[145]:
@@ -882,7 +877,7 @@ figPres.append( glucifer.objects.Surface(mesh, (pressureField - lithPressureFn),
 #figPres.draw.label(r'$\sin (x)$', (0.2,0.7,0))
 figPres.append( glucifer.objects.Mesh(mesh,opacity=0.2))
 
-figPres.show()
+#figPres.show()
 
 
 # In[98]:
@@ -921,7 +916,7 @@ xv, yv = np.meshgrid(
 
 meshGlobs = np.row_stack((xv.flatten(), yv.flatten())).T
 
-eII_2sig = eii_mean  + 0.75*eii_std
+eII_2sig = eii_mean  + 2.*eii_std
 
 
 # In[246]:
@@ -973,7 +968,7 @@ figTest.append( glucifer.objects.Points(shearbandswarm, pointSize=2.0, colourBar
 
 
 figTest .append( glucifer.objects.Surface(mesh,strainRate_2ndInvariantFn, valueRange=[1e-3, 5.]) )
-figTest.show()
+#figTest.show()
 
 
 # In[230]:
@@ -1017,7 +1012,6 @@ rmsSurf = _rmsSurf.evaluate()[0]
 # In[267]:
 
 if uw.rank()==0:
-    f_o = open(outputPath+outputFile, 'w')
     f_o.write((6*'%-15s ' + '\n') % (rmsint,rmsSurf, _viscMM.min_global(), 
                                       _viscMM.max_global(),_eiiMM.min_global(), _eiiMM.max_global()))
     f_o.writelines(["%s\n" % item for item in resVals])
