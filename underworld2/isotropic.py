@@ -771,7 +771,7 @@ count = 0
 
 resVals = []
 
-for i in range(md.maxIts):
+for i in range(int(md.maxIts)):
     
     prevVelocityField.data[:] = velocityField.data.copy()
     solver.solve( nonLinearIterate=False)
@@ -898,14 +898,14 @@ pressureField.save(filePath + "pressure.h5")
 
 # ## Save points to determine shear band angle
 
-# In[147]:
+# In[318]:
 
 eii_mean = uw.utils.Integral(strainRate_2ndInvariantFn,mesh).evaluate()[0]/4.
 
 eii_std = uw.utils.Integral(fn.math.sqrt(0.25*(strainRate_2ndInvariantFn - eii_mean)**2.), mesh).evaluate()[0]
 
 
-# In[245]:
+# In[319]:
 
 #grab all of material points that are above 2 sigma of mean strain rate invariant
 
@@ -920,24 +920,24 @@ meshGlobs = np.row_stack((xv.flatten(), yv.flatten())).T
 eII_2sig = eii_mean  + 2.*eii_std
 
 
-# In[246]:
+# In[320]:
 
 shearbandswarm  = uw.swarm.Swarm( mesh=mesh, particleEscape=True )
 shearbandswarmlayout  = uw.swarm.layouts.GlobalSpaceFillerLayout( swarm=shearbandswarm , particlesPerCell=int(md.ppc/16.) )
 shearbandswarm.populate_using_layout( layout=shearbandswarmlayout )
 
 
-# In[247]:
+# In[321]:
 
 #shearbandswarm.particleGlobalCount
 
 
-# In[248]:
+# In[322]:
 
 np.unique(strainRate_2ndInvariantFn.evaluate(shearbandswarm) < eII_2sig)
 
 
-# In[249]:
+# In[323]:
 
 with shearbandswarm.deform_swarm():
     mask = np.where(strainRate_2ndInvariantFn.evaluate(shearbandswarm) < eII_2sig)
@@ -960,7 +960,7 @@ with shearbandswarm.deform_swarm():
 shearbandswarm.update_particle_owners()
 
 
-# In[250]:
+# In[326]:
 
 figTest = glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 figTest.append( glucifer.objects.Points(shearbandswarm, pointSize=2.0, colourBar=False) )
@@ -972,19 +972,19 @@ figTest .append( glucifer.objects.Surface(mesh,strainRate_2ndInvariantFn, valueR
 #figTest.show()
 
 
-# In[230]:
+# In[327]:
 
 figTest.save_image(imagePath +  "figTest.png")
 
 
-# In[231]:
+# In[328]:
 
 shearbandswarm.save(filePath + 'swarm.h5')
 
 
 # ## Calculate and save some metrics
 
-# In[265]:
+# In[317]:
 
 sqrtv2 = fn.math.sqrt(fn.math.dot(velocityField,velocityField))
 sqrtv2x = fn.math.sqrt(fn.math.dot(velocityField[0],velocityField[0]))
@@ -1001,13 +1001,18 @@ _eiiMM = fn.view.min_max(strainRate_2ndInvariantFn)
 dummyFn = _eiiMM.evaluate(swarm)
 
 
-# In[266]:
+# In[367]:
 
 #_viscMM.min_global(), _viscMM.max_global()
 #_eiiMM.min_global(), _eiiMM.max_global()
 
 rmsint = _rmsint.evaluate()[0]
 rmsSurf = _rmsSurf.evaluate()[0]
+
+viscmin = _viscMM.min_global()
+viscmax = _viscMM.max_global()
+eiimin = _eiiMM.min_global(), 
+eiimax = _eiiMM.max_global()
 
 
 # In[267]:
@@ -1017,12 +1022,12 @@ rmsSurf = _rmsSurf.evaluate()[0]
 
 # ## scratch
 
-# In[273]:
+# In[329]:
 
 import h5py
 
 
-# In[279]:
+# In[372]:
 
 fname = filePath + 'swarm.h5'
 
@@ -1040,20 +1045,47 @@ if uw.rank()==0:
 
     z = np.polyfit(sbx, sby, 1)
     p = np.poly1d(z)
-    newcoords = np.column_stack((sbx, p(sbx)))
+    
+    #newcoords = np.column_stack((sbx, p(sbx)))
     angle = math.atan(z[0])*(180./math.pi)
     45. - dp.fa
-
     
-
-
-# In[283]:
-
 comm.barrier()
-comm.Bcast(newcoords, root = 0)
 
 
-# In[288]:
+
+
+if rank==0:
+    dydx = p[1]
+else:
+    dydx = 1.
+
+# share value of dydx
+comm.barrier()
+dydx = comm.bcast(dydx, root = 0)
+comm.barrier()
+
+
+
+print(dydx)
+
+
+# In[370]:
+
+
+
+
+# In[350]:
+
+xs = np.linspace(0, -1., 100)
+newcoords = np.column_stack((xs, dydx*xs ))
+
+
+swarmCustom = uw.swarm.Swarm(mesh)
+swarmCustom.add_particles_with_coordinates(newcoords )
+
+
+# In[351]:
 
 figTest2 = glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 figTest2.append( glucifer.objects.Points(shearbandswarm, pointSize=2.0, colourBar=False) )
@@ -1067,14 +1099,21 @@ figTest2.append( glucifer.objects.Surface(mesh,strainRate_2ndInvariantFn, valueR
 figTest2.save_image(imagePath +  "figTest2.png")
 
 
-# In[ ]:
+# In[365]:
+
+import csv
 
 if uw.rank()==0:
-    f_o.write((6*'%-15s ' + '\n') % (rmsint,rmsSurf, _viscMM.min_global(), 
-                                      _viscMM.max_global(),_eiiMM.min_global(), _eiiMM.max_global(), angle ))
-    
-    f_o.writelines(["%s\n" % item for item in resVals])
 
-            
-f_o.close()
+    someVals = [rmsint,rmsSurf, viscmin, viscmax, eiimin, eiimax, angle] 
+
+    with open(os.path.join(outputPath, 'out.csv'), 'w') as csvfile:
+        writer = csv.writer(csvfile, delimiter=",")
+        writer.writerow(someVals)
+        writer.writerow(resVals)
+
+
+# In[ ]:
+
+
 
