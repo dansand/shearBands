@@ -43,7 +43,7 @@
 #    3) There is no thermal component to this notebook and hence no ALE correction for the moving mesh applies to the advection term.
 # 
 
-# In[269]:
+# In[339]:
 
 import numpy as np
 import underworld as uw
@@ -66,7 +66,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[270]:
+# In[340]:
 
 #####
 #Stubborn version number conflicts - For now...
@@ -130,7 +130,7 @@ except:
 # Model name and directories
 # -----
 
-# In[271]:
+# In[341]:
 
 ############
 #Model letter and number
@@ -158,7 +158,7 @@ else:
                 Model  = farg
 
 
-# In[272]:
+# In[342]:
 
 ###########
 #Standard output directory setup
@@ -200,7 +200,7 @@ comm.Barrier() #Barrier here so no procs run the check in the next cell too earl
 
 
 
-# In[273]:
+# In[343]:
 
 ###########
 #Parameter / settings dictionaries get saved&loaded using pickle
@@ -219,7 +219,7 @@ dict_names = ['dp.pkl', 'sf.pkl', 'ndp.pkl', 'md.pkl']
 
 
 
-# In[274]:
+# In[344]:
 
 ###########
 #Store the physical parameters, scale factors and dimensionless pramters in easyDicts
@@ -242,7 +242,7 @@ dp = edict({'LS':10*1e3, #Scaling Length scale
             })
 
 
-# In[338]:
+# In[345]:
 
 #Modelling and Physics switches
 #md : model dictionary
@@ -254,11 +254,11 @@ md = edict({'refineMesh':False,
             'ppc':25,
             'tol':1e-3,
             'maxIts':150,
-            'md.notch_fac':1.
+            'notch_fac':1.
             })
 
 
-# In[276]:
+# In[346]:
 
 ###########
 #If command line args are given, overwrite
@@ -317,12 +317,12 @@ for farg in sys.argv[1:]:
 comm.barrier()
 
 
-# In[277]:
+# In[347]:
 
 dp.LS**3
 
 
-# In[278]:
+# In[348]:
 
 #Only build these guys first time around, otherwise the read from checkpoints
 #Important because some of these params (like SZ location) may change during model evolution
@@ -354,7 +354,7 @@ ndp = edict({'U':dp.U0/sf.vel,
             }) 
 
 
-# In[279]:
+# In[349]:
 
 #ndp
 
@@ -364,7 +364,7 @@ ndp = edict({'U':dp.U0/sf.vel,
 # 
 # Note: the use of a pressure-sensitive rheology suggests that it is important to use a Q2/dQ1 element 
 
-# In[280]:
+# In[350]:
 
 minX  = -2.0
 maxX  =  2.0
@@ -399,7 +399,7 @@ pressureField.data[:] = 0.
 # 
 # Pure shear with moving  walls — all boundaries are zero traction with 
 
-# In[281]:
+# In[351]:
 
 iWalls = mesh.specialSets["MinI_VertexSet"] + mesh.specialSets["MaxI_VertexSet"]
 jWalls = mesh.specialSets["MinJ_VertexSet"] + mesh.specialSets["MaxJ_VertexSet"]
@@ -424,7 +424,7 @@ for index in mesh.specialSets["MaxI_VertexSet"]:
 # 
 # Passive swarms can track all sorts of things but lack all the machinery for integration and re-population
 
-# In[282]:
+# In[352]:
 
 swarm  = uw.swarm.Swarm( mesh=mesh )
 swarmLayout = uw.swarm.layouts.GlobalSpaceFillerLayout( swarm=swarm, particlesPerCell=int(md.ppc) )
@@ -440,7 +440,7 @@ surfaceSwarm = uw.swarm.Swarm( mesh=mesh )
 # 
 # Note that we need to set up one advector systems for each particle swarm (our global swarm and a separate one if we add passive tracers).
 
-# In[283]:
+# In[353]:
 
 advector        = uw.systems.SwarmAdvector( swarm=swarm,            velocityField=velocityField, order=2 )
 advector2       = uw.systems.SwarmAdvector( swarm=surfaceSwarm,     velocityField=velocityField, order=2 )
@@ -454,7 +454,7 @@ advector2       = uw.systems.SwarmAdvector( swarm=surfaceSwarm,     velocityFiel
 # 
 # **NOTE**:  Underworld needs all the swarm variables defined before they are initialised or there will be / can be memory problems (at least it complains about them !). That means we need to add the monitoring variables now, even if we don't always need them.
 
-# In[284]:
+# In[354]:
 
 # Tracking different materials
 
@@ -474,7 +474,7 @@ yvelsurfVar = surfaceSwarm.add_variable( dataType="double", count=1)
 # ### Initialise swarm variables
 # 
 
-# In[285]:
+# In[355]:
 
 yvelsurfVar.data[...] = (0.)
 materialVariable.data[...] = 0
@@ -484,12 +484,12 @@ materialVariable.data[...] = 0
 # 
 # 
 
-# In[ ]:
+# In[367]:
+
+#md.notch_fac = 4.
 
 
-
-
-# In[286]:
+# In[366]:
 
 # Initialise the 'materialVariable' data to represent different materials. 
 material1 = 1 # viscoplastic
@@ -514,10 +514,10 @@ notchWidth = (1./32.) * md.notch_fac
 notchCond = operator.and_(coord[1] < ndp.asthenosphere + notchWidth, operator.and_(coord[0] < notchWidth, coord[0] > -1.*notchWidth )  )
 
 mu = notchWidth
-sig = 1/48.
-gausFn1 = 1/16.*fn.math.exp(-1.*(coord[0] - mu)**2/(2 * sig**2)) + ndp.asthenosphere
+sig =  0.5*notchWidth
+gausFn1 = notchWidth*fn.math.exp(-1.*(coord[0] - mu)**2/(2 * sig**2)) + ndp.asthenosphere
 mu = -1.*notchWidth
-gausFn2 = 1/16.*fn.math.exp(-1.*(coord[0] - mu)**2/(2 * sig**2)) + ndp.asthenosphere
+gausFn2 = notchWidth*fn.math.exp(-1.*(coord[0] - mu)**2/(2 * sig**2)) + ndp.asthenosphere
 
 conditions = [ (       coord[1] > 1.0 , material0 ), #air
                (       coord[1] < ndp.asthenosphere , material2 ), #asthenosphere
@@ -533,7 +533,7 @@ conditions = [ (       coord[1] > 1.0 , material0 ), #air
 materialVariable.data[:] = fn.branching.conditional( conditions ).evaluate(swarm)
 
 
-# In[287]:
+# In[368]:
 
 figMat = glucifer.Figure( figsize=(1200,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 figMat.append( glucifer.objects.Points(swarm,materialVariable, pointSize=2.0) )
