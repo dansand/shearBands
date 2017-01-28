@@ -5,3 +5,6 @@ results/
 **/.ipynb_checkpoints/
 **/*.png
 **/temp_results/
+**/plasticitymodels/
+**/*.vtu
+**/*.pvd
