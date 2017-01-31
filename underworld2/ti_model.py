@@ -43,7 +43,7 @@
 #    3) There is no thermal component to this notebook and hence no ALE correction for the moving mesh applies to the advection term.
 # 
 
-# In[33]:
+# In[2]:
 
 import numpy as np
 import underworld as uw
@@ -66,7 +66,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[34]:
+# In[3]:
 
 #####
 #Stubborn version number conflicts - For now...
@@ -130,7 +130,7 @@ except:
 # Model name and directories
 # -----
 
-# In[35]:
+# In[4]:
 
 ############
 #Model letter and number
@@ -158,7 +158,7 @@ else:
                 Model  = farg
 
 
-# In[36]:
+# In[5]:
 
 ###########
 #Standard output directory setup
@@ -200,7 +200,7 @@ comm.Barrier() #Barrier here so no procs run the check in the next cell too earl
 
 
 
-# In[37]:
+# In[6]:
 
 ###########
 #Parameter / settings dictionaries get saved&loaded using pickle
@@ -219,7 +219,7 @@ dict_names = ['dp.pkl', 'sf.pkl', 'ndp.pkl', 'md.pkl']
 
 
 
-# In[64]:
+# In[8]:
 
 ###########
 #Store the physical parameters, scale factors and dimensionless pramters in easyDicts
@@ -240,7 +240,8 @@ dp = edict({#'LS':10*1e3, #Scaling Length scale
             'rho': 2700., #kg/m3
             'g':9.81,
             #'cohesion':40e6, #kaus
-            'cohesion':100e6, #speigelman et al
+            #'cohesion':100e6, #speigelman et al
+             'cohesion':60e6, 
             'fa':30.        #friction angle degrees
             })
 
@@ -648,26 +649,26 @@ shearAngles = principalAngles + 45.0
 
 # ## Director Vector for TI rheology
 
-# In[172]:
+# In[182]:
 
-md.directorSigma = 1e-10
-md.directorPhi = 45.
-md.directorV = 20.
+#md.directorSigma = 10.
+#md.directorPhi = 45.
+#md.directorV = None
 
 
-# In[173]:
+# In[183]:
 
 #a numpy array that will randomise our directions
 mask = np.random.randint(0,2, directorVector.data.shape[0])
 scatter = np.random.normal(0., md.directorSigma, directorVector.data.shape[0])
 
 
-# In[174]:
+# In[184]:
 
 md.directorPhi, md.directorV/2.
 
 
-# In[175]:
+# In[185]:
 
 #This block simpls allows some flexibility in how we set the director angles
 
@@ -701,40 +702,21 @@ else:
     directorVector.data[:,1] = np.sin(angles)
 
 
-# In[176]:
+# In[189]:
 
 ##md.directorPhi - dp.fa/2.
-dp.fa/2.
+dp.fa
 
 
-# In[177]:
+# In[190]:
 
-#45 
+#%pylab inline
+#plt.hist(angles, bins=50)
 
-#angleTox = 45. - ndp.fa/2
-#angleTox = 45.#
-#angle1 = angleTox * (math.pi / 180.0)
-#angle2 = (270. + angleTox) * (math.pi / 180.0)
-
-#directorVector.data[:,0] = math.cos(angle1)
-#directorVector.data[:,1] = math.sin(angle1)
+#angles[angles < 100.].mean(), angles[angles > 100.].mean()
 
 
-#directorVector.data[:,0] = math.cos(angle2)
-#directorVector.data[:,1][np.where(mask == 0)] = math.sin(angle2) 
-
-
-
-
-# In[178]:
-
-get_ipython().magic(u'pylab inline')
-plt.hist(angles, bins=50)
-
-angles[angles < 100.].mean(), angles[angles > 100.].mean()
-
-
-# In[99]:
+# In[191]:
 
 meshDirector = uw.mesh.MeshVariable( mesh, mesh.dim )
 
@@ -746,7 +728,7 @@ figDir = glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.
 figDir.append( glucifer.objects.VectorArrows(mesh, meshDirector, arrowHead=0.25, scaling=.45, resolutionI=8, resolutionJ=2) )
 
 
-figDir.show()
+#figDir.show()
 
 
 # In[ ]:
@@ -1223,6 +1205,13 @@ _shearVd  = uw.utils.Integral(vd*_2sigRest,mesh)
 _backgroundVd  = uw.utils.Integral(vd*_out2sigRest,mesh)
 
 
+#dynamic pressure min / max
+
+dynPressureField.data[:] = pressureField.data[:] - lithPressureFn.evaluate(mesh.subMesh)
+_press = fn.view.min_max(dynPressureField)
+dummyFn = _press.evaluate(swarm)
+
+
 # In[ ]:
 
 
@@ -1248,8 +1237,11 @@ backgroundVd = _backgroundVd.evaluate()[0]
 
 viscmin = _viscMM.min_global()
 viscmax = _viscMM.max_global()
-eiimin = _eiiMM.min_global(), 
+eiimin = _eiiMM.min_global()
 eiimax = _eiiMM.max_global()
+
+pressmax = _press.max_global()
+pressmin = _press.min_global()
 
 
 # In[ ]:
@@ -1342,11 +1334,13 @@ import csv
 if uw.rank()==0:
 
     someVals = [rmsint, shearArea ,shearPressure, 
-                backgroundArea, backgroundPressure, viscmin, viscmax, eiimin, eiimax, angle,vdint, shearVd, backgroundVd  ] 
+                backgroundArea, backgroundPressure, viscmin, viscmax, eiimin, eiimax, angle,vdint, shearVd, backgroundVd, pressmin, pressmax  ] 
 
-    with open(os.path.join(outputPath, 'out.csv'), 'w') as csvfile:
+    with open(os.path.join(outputPath, 'metrics.csv'), 'w') as csvfile:
         writer = csv.writer(csvfile, delimiter=",")
         writer.writerow(someVals)
+    with open(os.path.join(outputPath, 'solver.csv'), 'w') as csvfile:
+        writer = csv.writer(csvfile, delimiter=",")
         writer.writerow(res1Vals)
         writer.writerow(res2Vals)
         writer.writerow(res3Vals)
