@@ -1,5 +1,5 @@
 counter=1
-for a in 0.0 15.0 30.0
+for a in 0.0 10.0 20.0 30.0
 do
    for b in 1.0
    do
