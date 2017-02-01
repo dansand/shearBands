@@ -560,7 +560,7 @@ materialVariable.data[:] = fn.branching.conditional( conditions ).evaluate(swarm
 figMat = glucifer.Figure( figsize=(1200,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 figMat.append( glucifer.objects.Points(swarm,materialVariable, pointSize=2.0) )
 figMat.append( glucifer.objects.Mesh(mesh))
-figMat.show()
+#figMat.show()
 
 
 # In[ ]:
@@ -843,7 +843,7 @@ dynPressureField.data[:] = pressureField.data[:] - lithPressureFn.evaluate(mesh.
 
 # In[192]:
 
-md.maxIts = 5
+#md.maxIts = 5
 
 
 # In[193]:
