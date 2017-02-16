@@ -43,7 +43,7 @@
 #    3) There is no thermal component to this notebook and hence no ALE correction for the moving mesh applies to the advection term.
 # 
 
-# In[169]:
+# In[1]:
 
 import numpy as np
 import underworld as uw
@@ -66,7 +66,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[170]:
+# In[2]:
 
 #####
 #Stubborn version number conflicts - For now...
@@ -77,7 +77,7 @@ except:
     natsort.natsort = natsort.natsort
 
 
-# In[171]:
+# In[3]:
 
 #In case NN swarm interpolation is required
 
@@ -133,7 +133,7 @@ def nn_evaluation(fromSwarm, toSwarm, n=1, weighted=False):
 # Model name and directories
 # -----
 
-# In[172]:
+# In[4]:
 
 ############
 #Model letter and number
@@ -161,7 +161,7 @@ else:
                 Model  = farg
 
 
-# In[173]:
+# In[5]:
 
 ###########
 #Standard output directory setup
@@ -203,7 +203,7 @@ comm.Barrier() #Barrier here so no procs run the check in the next cell too earl
 
 
 
-# In[174]:
+# In[6]:
 
 ###########
 #Parameter / settings dictionaries get saved&loaded using pickle
@@ -222,7 +222,7 @@ dict_names = ['dp.pkl', 'sf.pkl', 'ndp.pkl', 'md.pkl']
 
 
 
-# In[175]:
+# In[8]:
 
 ###########
 #Store the physical parameters, scale factors and dimensionless pramters in easyDicts
@@ -235,16 +235,17 @@ dp = edict({#'LS':10*1e3, #Scaling Length scale
             #'asthenosphere': (0.*1e3)/4, #level from bottom of model,
             'asthenosphere': (30*1e3)/4, #level from bottom of model, 
             'eta0':1e21,
-            'eta1':1e23,
+            'eta1':1e24,
             'eta2':1e20,
             'etaMin':1e18,
             #'U0':0.006/(3600*24*365),  #m/s kaus
-            'U0':0.0125/(3600*24*365),  #m/s speigelman et al
+            #'U0':0.0125/(3600*24*365),  #m/s speigelman et al
+            'U0':0.0025/(3600*24*365),  #m/s speigelman et al
             'rho': 2700., #kg/m3
             'g':9.81,
             'cohesion':100e6, #speigelman et al
             #'cohesion':60e6, 
-            'fa':15.,        #friction angle degrees
+            'fa':25.,        #friction angle degrees
             'a':1.
             })
 
@@ -252,7 +253,7 @@ dp = edict({#'LS':10*1e3, #Scaling Length scale
 dp.notchWidth = dp.LS/16.
 
 
-# In[176]:
+# In[9]:
 
 #Modelling and Physics switches
 #md : model dictionary
@@ -260,17 +261,18 @@ dp.notchWidth = dp.LS/16.
 md = edict({'refineMesh':False,
             'stickyAir':False,
             'aspectRatio':4.,
-            'res':48,
+            'res':64,
             'ppc':35,
             'tol':1e-7,
             'maxIts':50,
             'directorPhi':45., #if this is , angle is same as maximum shear 
             'directorV': 1e-5, #if this is false , angle is taken as tan(fa) / 2.
-            'directorSigma':1e-5 #standard deviation in fault orientation
+            'directorSigma':1e-5, #standard deviation in fault orientation
+            'perturb':0, # 0 for material heterogeneity, 1 for cohesion weakening
            })
 
 
-# In[177]:
+# In[72]:
 
 ###########
 #If command line args are given, overwrite
@@ -329,12 +331,12 @@ for farg in sys.argv[1:]:
 comm.barrier()
 
 
-# In[178]:
+# In[73]:
 
 dp.LS**3
 
 
-# In[179]:
+# In[74]:
 
 #Only build these guys first time around, otherwise the read from checkpoints
 #Important because some of these params (like SZ location) may change during model evolution
@@ -360,7 +362,7 @@ ndp = edict({'U':dp.U0/sf.vel,
              'eta2':dp.eta2/dp.eta0,
              'etaMin':dp.etaMin/dp.eta0,
              'cohesion':dp.cohesion/sf.stress,
-             'fa':math.tan((math.pi/180.)*dp.fa), #convert friction angle to coefficient,
+             'fc':math.tan(np.radians(dp.fa)), #friction coefficient,
              'g': dp.g/sf.g,
              'rho':dp.rho/sf.rho,
              'notchWidth':dp.notchWidth/dp.LS,
@@ -369,12 +371,17 @@ ndp = edict({'U':dp.U0/sf.vel,
             }) 
 
 
-# In[ ]:
+
+#test
+#ndp.fa= math.sin((math.pi/180.)*dp.fa)
+#ndp.cohesion*=math.cos(ndp.fa)
+
+ndp.fc, ndp.cohesion
 
 
 
 
-# In[180]:
+# In[75]:
 
 
 #this is effectively the gravity force in the Spiegelman models, inner(v_t,f_i)/L2h2)
@@ -389,7 +396,7 @@ ndp = edict({'U':dp.U0/sf.vel,
 # 
 # Note: the use of a pressure-sensitive rheology suggests that it is important to use a Q2/dQ1 element 
 
-# In[181]:
+# In[76]:
 
 
 minX  = -2.0
@@ -425,7 +432,7 @@ pressureField.data[:] = 0.
 # 
 # Pure shear with moving  walls — all boundaries are zero traction with 
 
-# In[182]:
+# In[77]:
 
 iWalls = mesh.specialSets["MinI_VertexSet"] + mesh.specialSets["MaxI_VertexSet"]
 jWalls = mesh.specialSets["MinJ_VertexSet"] + mesh.specialSets["MaxJ_VertexSet"]
@@ -450,7 +457,7 @@ for index in mesh.specialSets["MaxI_VertexSet"]:
 # 
 # Passive swarms can track all sorts of things but lack all the machinery for integration and re-population
 
-# In[183]:
+# In[78]:
 
 swarm  = uw.swarm.Swarm( mesh=mesh )
 swarmLayout = uw.swarm.layouts.GlobalSpaceFillerLayout( swarm=swarm, particlesPerCell=int(md.ppc) )
@@ -466,7 +473,7 @@ surfaceSwarm = uw.swarm.Swarm( mesh=mesh )
 # 
 # Note that we need to set up one advector systems for each particle swarm (our global swarm and a separate one if we add passive tracers).
 
-# In[184]:
+# In[79]:
 
 advector        = uw.systems.SwarmAdvector( swarm=swarm,            velocityField=velocityField, order=2 )
 advector2       = uw.systems.SwarmAdvector( swarm=surfaceSwarm,     velocityField=velocityField, order=2 )
@@ -480,7 +487,7 @@ advector2       = uw.systems.SwarmAdvector( swarm=surfaceSwarm,     velocityFiel
 # 
 # **NOTE**:  Underworld needs all the swarm variables defined before they are initialised or there will be / can be memory problems (at least it complains about them !). That means we need to add the monitoring variables now, even if we don't always need them.
 
-# In[185]:
+# In[80]:
 
 # Tracking different materials
 
@@ -488,6 +495,11 @@ materialVariable = swarm.add_variable( dataType="int", count=1 )
 
 directorVector   = swarm.add_variable( dataType="double", count=2)
 principleStress   = swarm.add_variable( dataType="double", count=2)
+
+
+# plastic deformation for weakening
+
+plasticStrain  = swarm.add_variable( dataType="double",  count=1 )
 
 
 
@@ -504,17 +516,19 @@ yvelsurfVar = surfaceSwarm.add_variable( dataType="double", count=1)
 # ### Initialise swarm variables
 # 
 
-# In[186]:
+# In[81]:
 
 yvelsurfVar.data[...] = (0.)
 materialVariable.data[...] = 0
+
+plasticStrain.data[...] = 0
 
 
 # ### Material distribution in the domain.
 # 
 # 
 
-# In[187]:
+# In[82]:
 
 # Initialise the 'materialVariable' data to represent different materials. 
 material1 = 1 # viscoplastic
@@ -555,10 +569,16 @@ conditions = [ (       coord[1] > 1.0 , material0 ), #air
 # The actual function evaluation. Here the conditional function is evaluated at the location
 # of each swarm particle. The results are then written to the materialVariable swarm variable.
 
-materialVariable.data[:] = fn.branching.conditional( conditions ).evaluate(swarm)
+if md.perturb == 0:
+    materialVariable.data[:] = fn.branching.conditional( conditions ).evaluate(swarm)
+    
+else: 
+    #in this case just build the asphenosphere
+    materialVariable.data[:] = material1
+    materialVariable.data[np.where(swarm.particleCoordinates.data[:,1] < ndp.asthenosphere)] = material2
 
 
-# In[188]:
+# In[83]:
 
 figMat = glucifer.Figure( figsize=(1200,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 figMat.append( glucifer.objects.Points(swarm,materialVariable, pointSize=2.0) )
@@ -566,55 +586,62 @@ figMat.append( glucifer.objects.Mesh(mesh))
 #figMat.show()
 
 
-# In[ ]:
-
-
-
-
 # ## Buoyancy forces
 # 
 # In this example, no buoyancy forces are included in the Stokes system, the Pressures that appear are dynamic (p'). We add the appropriate lithostatic component to the Drucker-Prager yield criterion.
 
-# In[189]:
+# In[84]:
 
 lithPressureFn = ndp.rho* (1. - coord[1])
 
 
 # ## Background Rheology
 
-# In[190]:
+# In[85]:
 
 strainRateFn = fn.tensor.symmetric( velocityField.fn_gradient )
 strainRate_2ndInvariantFn = fn.tensor.second_invariant(strainRateFn)
 
 
-# In[191]:
+# In[86]:
 
-##Background viscosity
+# plastic strain - weaken a region at the base close to the boundary (a weak seed but through cohesion softening)
 
-visc0 = 0.01      #if sticky air
-visc1 = ndp.eta1
-visc2 = ndp.eta2
+def gaussian(xx, centre, width):
+    return ( np.exp( -(xx - centre)**2 / width ))
+
+def boundary(xx, minX, maxX, width, power):
+    zz = (xx - minX) / (maxX - minX)
+    return (np.tanh(zz*width) + np.tanh((1.0-zz)*width) - math.tanh(width))**power
+
+# weight = boundary(swarm.particleCoordinates.data[:,1], 10, 4) 
+
+if md.perturb != 0: #build a heterogenity into the cohesion, through the accumulated plastic strain term
+
+    #plasticStrain.data[:] = 0.5 * np.random.rand(*plasticStrain.data.shape[:])
+    plasticStrain.data[:] = np.random.normal(loc=0.5, scale=0.05,size = plasticStrain.data.shape[:])
+    plasticStrain.data[:,0] *= gaussian(swarm.particleCoordinates.data[:,0], 0.0, ndp.notchWidth) 
+    plasticStrain.data[:,0] *= gaussian(swarm.particleCoordinates.data[:,1], ndp.asthenosphere, ndp.notchWidth/2.) 
+    plasticStrain.data[:,0] *= boundary(swarm.particleCoordinates.data[:,0], minX, maxX, 10.0, 2)
+    plasticStrain.data[:,0][np.where(swarm.particleCoordinates.data[:,1] < ndp.asthenosphere)] = 0.
+
+# 
 
 
-viscosityMap = { material0: visc0, material1:visc1, material2:visc2 }
 
-backgroundViscosityFn  = fn.branching.map( fn_key = materialVariable, 
-                                           mapping = viscosityMap )
+# In[87]:
 
-
-# In[192]:
-
-# Friction - in this form it could also be made to weaken with strain
-
+# Friction - in this form it can also be made to weaken with strain
 
 cohesion0       = fn.misc.constant(ndp.cohesion)
-cohesionFn = cohesion0
+cohesionInf = 0.25*cohesion0
+refStrain = 0.5
 
 # Drucker-Prager yield criterion
 
+weakenedCohesion = cohesion0+ (cohesionInf - cohesion0)*fn.misc.min(1., plasticStrain/refStrain) 
 
-yieldStressFn   = cohesionFn + ndp.fa *(lithPressureFn + ndp.a*pressureField ) 
+yieldStressFn   = weakenedCohesion  + ndp.fc *(lithPressureFn + ndp.a*pressureField ) 
 
 #yieldStressFn   = cohesionFn + ndp.fa *(lithPressureFn + ndp.a*fn.misc.max(fn.misc.constant(0.), pressureField) ) #in this case only positive dynamic pressures
 
@@ -635,9 +662,22 @@ yieldingViscosityFn =  0.5 * yieldStressFn / (strainRate_2ndInvariantFn+1.0e-18)
 #                                                  min_viscosity))
 
 
-viscosityFn = fn.exception.SafeMaths( fn.misc.max(
-                                              1./((1./yieldingViscosityFn) + (1./backgroundViscosityFn))
+compositeviscosityFn = fn.exception.SafeMaths( fn.misc.max(
+                                              1./((1./yieldingViscosityFn) + (1./ndp.eta1))
                                              , ndp.etaMin))
+
+
+# In[88]:
+
+viscosityMap = { material0: ndp.etaMin, material1:compositeviscosityFn, material2:ndp.eta2 }
+
+viscosityFn  = fn.branching.map( fn_key = materialVariable, 
+                                           mapping = viscosityMap )
+
+backgroundviscosityMap = { material0: ndp.etaMin, material1:ndp.eta1, material2:ndp.eta2 }
+
+backgroundViscosityFn  = fn.branching.map( fn_key = materialVariable, 
+                                           mapping = backgroundviscosityMap )
 
 
 # ## Initial Stokes solve to compute the stresses
@@ -648,7 +688,7 @@ viscosityFn = fn.exception.SafeMaths( fn.misc.max(
 
 
 
-# In[193]:
+# In[89]:
 
 stokes = uw.systems.Stokes(    velocityField = velocityField, 
                                pressureField = pressureField,
@@ -658,50 +698,64 @@ stokes = uw.systems.Stokes(    velocityField = velocityField,
 solver = uw.systems.Solver( stokes )
 
 
-# In[194]:
+# In[90]:
 
 solver.solve(nonLinearIterate=True, nonLinearMaxIterations=1)
 
 
-# In[195]:
+# In[91]:
 
 strainRateFn = fn.tensor.symmetric( velocityField.fn_gradient )
 LFn = velocityField.fn_gradient 
 
 
-# In[196]:
+# ## Principal stress orientations directly
 
-#get the principal stress orientations based on the linear solve
+# #get the principal stress orientations based on the linear solve
+# 
+# sRt = strainRateFn.evaluate(swarm)
+# #principalAngles= 0.5*np.arctan(2.*sRt[:,2]/((sRt[:,0] + 1e-14) - sRt[:,1]))*(180./math.pi)
+# #shearAngles = principalAngles + 45.0
+# 
+# tau = np.sqrt(((sRt[:,0]+ 1e-14 - sRt[:,1])**2)/4. + sRt[:,2]**2)
+# principalAngles = 0.5*np.arcsin(sRt[:,2]/tau)*(180./np.pi)
 
-sRt = strainRateFn.evaluate(swarm)
-#principalAngles= 0.5*np.arctan(2.*sRt[:,2]/((sRt[:,0] + 1e-14) - sRt[:,1]))*(180./math.pi)
-#shearAngles = principalAngles + 45.0
+# ## Eigenvector approach
 
-tau = np.sqrt(((sRt[:,0]+ 1e-14 - sRt[:,1])**2)/4. + sRt[:,2]**2)
-principalAngles = 0.5*np.arcsin(sRt[:,2]/tau)*(180./np.pi)
+# In[92]:
 
+#eig1  = uw.mesh.MeshVariable( mesh, mesh.dim )
+#eig2  = uw.mesh.MeshVariable( mesh, mesh.dim )
 
-# In[ ]:
-
-
+eig1  = swarm.add_variable( dataType="double",  count=2 )
+eig2  = swarm.add_variable( dataType="double",  count=2 )
 
 
-# In[197]:
+ssr = strainRateFn.evaluate(swarm)
 
-#%pylab inline
-#plt.hist(angles, bins=20, )
+for ti, val in enumerate(eig1.data):
+    eigVals, eigVex= np.linalg.eig(np.array([[ssr[ti][0],ssr[ti][2]],[ssr[ti][2],ssr[ti][1]]]))
+    pi = np.argmin(eigVals) #index of largest eigenvalue
+    eig1.data[ti] = eigVex[pi]
+    eig2.data[ti] = eigVex[abs(pi - 1)] #index of other eigenvalue - 2D assumption
+    
+
+
+# In[93]:
+
+principalAngles = np.degrees(np.arctan(eig1.data[:,1]/(eig1.data[:,0] + 1e-20)))
 
 
 # ## Director Vector for TI rheology
 
-# In[198]:
+# In[94]:
 
 aOrient = principalAngles + (45. - dp.fa/2.)
 bOrient = principalAngles - (45. - dp.fa/2.)
 finalOrient = np.zeros(aOrient.shape)
 
 
-# In[199]:
+# In[95]:
 
 an = np.zeros((aOrient.shape[0], 2))
 bn = np.zeros((bOrient.shape[0], 2))
@@ -713,67 +767,91 @@ bn[:,0] = np.cos(np.radians(bOrient))
 bn[:,1] = np.sin(np.radians(bOrient))
 
 
-# In[200]:
+# In[96]:
 
 Lij = LFn.evaluate(swarm)
 
 
-# In[201]:
+# In[97]:
+
+#define the matrix product for $\dot n_i = L_{ji} n_j$
 
 def Ldotn(L,n):
-    x,y =  L[:,0]*n[:,0] + L[:,2]*n[:,1], L[:,3]*n[:,0] + L[:,1]*n[:,1]
+    x,y =  L[:,0]*n[:,0] + L[:,1]*n[:,1], L[:,2]*n[:,0] + L[:,3]*n[:,1]
     return np.column_stack((x, y))
 
 
-# In[202]:
+# In[98]:
+
+#apply L_{ji} n_j
 
 aAction = Ldotn(Lij,an)
 bAction = Ldotn(Lij,bn)
 
 
-# In[203]:
+# In[99]:
 
-amask = np.linalg.norm(aAction, axis=1) > np.linalg.norm(bAction, axis=1)
+#The slip plane most closely aligned to the sense of shear is the one with the smaller norm |\dot n_i|
+
+amask = np.linalg.norm(aAction, axis=1) < np.linalg.norm(bAction, axis=1)
 
 finalOrient[:] = bOrient[:]
 finalOrient[amask] = aOrient[amask]
 
 
-# In[204]:
+# In[100]:
 
 #in this step we find the normal vector to the shear band
 directorVector.data[:,0] = np.sin(np.radians(finalOrient))
 directorVector.data[:,1] = -1.*np.cos(np.radians(finalOrient))
 
 
-# In[205]:
+# In[101]:
 
 principleStress.data[:,0] = np.cos(np.radians(principalAngles))
 principleStress.data[:,1] = np.sin(np.radians(principalAngles))
 
 
-# In[206]:
+# In[102]:
+
+#principleStress.data[0]
+
+
+# In[ ]:
+
+
+
+
+# In[ ]:
+
+
+
+
+# In[103]:
 
 #directorVector.data[:,1][directorVector.data[:,1] < 0].mean(), directorVector.data[:,1][directorVector.data[:,1] > 0].mean()
 
 
-# In[207]:
+# In[104]:
 
 #%pylab inline
 #plt.hist((180./math.pi)*directorVector.data[:,1], bins=50)
 
 
-# In[208]:
+# In[105]:
 
 ix, weights = nn_evaluation(swarm, mesh.data, n=1, weighted=False)
-meshDirector = uw.mesh.MeshVariable( mesh, mesh.dim )
 
+meshDirector = uw.mesh.MeshVariable( mesh, mesh.dim )
 meshDirector.data[:] = directorVector.data[ix]
 
+sigma1= uw.mesh.MeshVariable( mesh, mesh.dim )
+sigma1.data[:] = principleStress.data[ix]
 
-principalDirector = uw.mesh.MeshVariable( mesh, mesh.dim )
 
-principalDirector.data[:] = principleStress.data[ix]
+#eigAngle= uw.mesh.MeshVariable( mesh, mesh.dim )
+#eigAngle.data[:] = eig1.data[ix]
+
 
 
 #projectorDirector = uw.utils.MeshVariable_Projection( meshDirector, directorVector, type=0 )
@@ -782,20 +860,22 @@ principalDirector.data[:] = principleStress.data[ix]
 figDir = glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 
 figDir.append( glucifer.objects.VectorArrows(mesh, meshDirector, arrowHead=0.01, scaling=.1, resolutionI=32, resolutionJ=8) )
-figDir.append( glucifer.objects.VectorArrows(mesh, principalDirector, arrowHead=0.2, scaling=.1, resolutionI=32, resolutionJ=8) )
+figDir.append( glucifer.objects.VectorArrows(mesh, sigma1, arrowHead=0.2, scaling=.1, resolutionI=32, resolutionJ=8) )
+#figDir.append( glucifer.objects.VectorArrows(mesh, eig1, arrowHead=0.2, scaling=.1, resolutionI=32, resolutionJ=8) )
 
 
-figDir.show()
+#figDir.show()
 
 
-# In[209]:
+# In[106]:
 
-#dp.fa
+#i = 3070
+#np.inner(sigma1.data[:], eig1.data[:])
 
 
 # ## Transversely isotropic rheology
 
-# In[210]:
+# In[107]:
 
 #resolved strain rates
 
@@ -810,7 +890,7 @@ edots_SFn = (  directorVector[0] *  directorVector[1] *(strainRateFn[1] - strain
 
 
 
-# In[211]:
+# In[108]:
 
 ##Transversely isotropic rheology
 
@@ -819,11 +899,14 @@ cohesion0       = fn.misc.constant(ndp.cohesion)
 cohesionFn = cohesion0
 
 #can try several variants on this - 
-viscosity2Fn = ( (ndp.fa *(lithPressureFn + ndp.a*pressureField )  + ndp.cohesion) / (fn.math.abs(edots_SFn) + 1.0e-15))
+#weakenedCohesion = cohesion0+ (cohesionInf - cohesion0)*fn.misc.min(1., plasticStrain/refStrain) 
+#yieldStressFn   = weakenedCohesion  + ndp.fc *(lithPressureFn + ndp.a*pressureField ) 
+
+viscosity2Fn = ( (ndp.fc *(lithPressureFn + ndp.a*pressureField )  + weakenedCohesion ) / (2.*fn.math.abs(edots_SFn) + 1.0e-15))
 
 
-delviscosity2fn = fn.misc.min(backgroundViscosityFn - ndp.etaMin, fn.misc.max(0.0, 
-                     backgroundViscosityFn - viscosity2Fn))
+delviscosity2fn = fn.misc.min(ndp.eta1 - ndp.etaMin, fn.misc.max(0.0, 
+                     ndp.eta1 - viscosity2Fn))
 
 
 delviscosity2Map    = { 0: 0.0, 
@@ -847,7 +930,7 @@ secondViscosityFn  = fn.branching.map( fn_key  = materialVariable,
 # 
 # In this example, no buoyancy forces are considered. However, to establish an appropriate pressure gradient in the material, it would normally be useful to map density from material properties and create a buoyancy force.
 
-# In[212]:
+# In[109]:
 
 stokes = uw.systems.Stokes( velocityField  = velocityField, 
                                pressureField  = pressureField,
@@ -873,19 +956,19 @@ else:
 
 
 
-# In[213]:
+# In[110]:
 
 #solver.solve( nonLinearIterate=True, nonLinearMaxIterations=20)
 
 
-# In[214]:
+# In[111]:
 
 #solver._stokesSLE._cself.curResidual
 
 
 # ## Manual Picard iteration
 
-# In[215]:
+# In[112]:
 
 prevVelocityField    = uw.mesh.MeshVariable( mesh=mesh,         nodeDofCount=mesh.dim )
 
@@ -896,18 +979,18 @@ prevVelocityField.data[:] = (0., 0.)
 prevPressureField.data[:] = 0.
 
 
-# In[216]:
+# In[113]:
 
 def volumeint(Fn = 1., rFn=1.):
     return uw.utils.Integral( Fn*rFn,  mesh )
 
 
-# In[217]:
+# In[114]:
 
-md.maxIts = 4
+md.maxIts = 25
 
 
-# In[218]:
+# In[115]:
 
 surfaceArea = uw.utils.Integral(fn=1.0,mesh=mesh, integrationType='surface', surfaceIndexSet=top)
 surfacePressureIntegral = uw.utils.Integral(fn=pressureField, mesh=mesh, integrationType='surface', surfaceIndexSet=top)
@@ -915,7 +998,7 @@ surfacePressureIntegral = uw.utils.Integral(fn=pressureField, mesh=mesh, integra
 (area,) = surfaceArea.evaluate()
 
 
-# In[219]:
+# In[116]:
 
 #The underworld Picard interation applies the following residual (SystemLinearEquations.c)
 
@@ -1016,12 +1099,12 @@ for i in range(int(md.maxIts)):
         break
 
 
-# In[220]:
+# In[117]:
 
 #solver._stokesSLE._cself.curResidual
 
 
-# In[221]:
+# In[118]:
 
 #%pylab inline
 
@@ -1031,7 +1114,7 @@ for i in range(int(md.maxIts)):
 #ax.set_ylim(0.0005, 1.)
 
 
-# In[222]:
+# In[119]:
 
 #((20e3*1e-15)*3600*365*24)*100.
 
@@ -1043,25 +1126,27 @@ for i in range(int(md.maxIts)):
 
 # ## Figures
 
-# In[223]:
+# In[121]:
 
 #dp.fa
 
 
-# In[224]:
+# In[201]:
 
 figSinv = glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 
-#figSinv .append( glucifer.objects.Points(swarm,strainRate_2ndInvariantFn, pointSize=2.0, valueRange=[1e-3, 5.]) )
+#figSinv .append( glucifer.objects.Points(swarm,plasticStrain, pointSize=2.0) )
+
 figSinv .append( glucifer.objects.Points(swarm,strainRate_2ndInvariantFn, pointSize=2.0, valueRange=[2e-1, 1.5]) )
-figSinv.append( glucifer.objects.VectorArrows(mesh, meshDirector, arrowHead=0.0, scaling=.075, resolutionI=32, resolutionJ=8) )
+figSinv.append( glucifer.objects.VectorArrows(mesh, -1.*meshDirector, arrowHead=0.2, scaling=.075, resolutionI=32, resolutionJ=8) )
+figSinv.append( glucifer.objects.VectorArrows(mesh, sigma1, arrowHead=0.0, scaling=.1, resolutionI=32, resolutionJ=8) )
 
 
 #figSinv.show()
 #figSinv.save_image('ti.png')
 
 
-# In[225]:
+# In[124]:
 
 figVisc = glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 
@@ -1073,13 +1158,18 @@ figVisc.append( glucifer.objects.Points(swarm, backgroundViscosityFn - secondVis
 #figVisc.show()
 
 
-# In[226]:
+# In[ ]:
+
+
+
+
+# In[125]:
 
 #viscosityFn.evaluate([0.5, 0.5])
 #velocityField.evaluate([0.5, 0.5])
 
 
-# In[227]:
+# In[192]:
 
 figPres= glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 
@@ -1096,7 +1186,7 @@ figPres.append( glucifer.objects.Points(swarm, pressureField,pointSize=2.0, valu
 
 
 
-# In[228]:
+# In[127]:
 
 figSinv.save_image(imagePath + "figSinv.png")
 
@@ -1105,13 +1195,13 @@ figVisc.save_image(imagePath +  "figVisc.png")
 figPres.save_image(imagePath + "figPres.png")
 
 
-# In[229]:
+# In[128]:
 
 velocityField.save(filePath + "vel.h5")
 pressureField.save(filePath + "pressure.h5")
 
 
-# In[230]:
+# In[129]:
 
 yvelsurfVar.data[...] = velocityField[1].evaluate(surfaceSwarm)
 yvelsurfVar.save(filePath + "yvelsurf.h5")
@@ -1119,14 +1209,14 @@ yvelsurfVar.save(filePath + "yvelsurf.h5")
 
 # ## Save points to determine shear band angle
 
-# In[231]:
+# In[153]:
 
 eii_mean = uw.utils.Integral(strainRate_2ndInvariantFn,mesh).evaluate()[0]/4.
 
 eii_std = uw.utils.Integral(fn.math.sqrt(0.25*(strainRate_2ndInvariantFn - eii_mean)**2.), mesh).evaluate()[0]
 
 
-# In[232]:
+# In[176]:
 
 #grab all of material points that are above 2 sigma of mean strain rate invariant
 
@@ -1144,24 +1234,24 @@ meshGlobs = np.row_stack((xv.flatten(), yv.flatten())).T
 eII_2sig = eii_mean  + 2.*eii_std
 
 
-# In[233]:
+# In[177]:
 
 shearbandswarm  = uw.swarm.Swarm( mesh=mesh, particleEscape=True )
 shearbandswarmlayout  = uw.swarm.layouts.GlobalSpaceFillerLayout( swarm=shearbandswarm , particlesPerCell=int(md.ppc/16.) )
 shearbandswarm.populate_using_layout( layout=shearbandswarmlayout )
 
 
-# In[234]:
+# In[178]:
 
 #shearbandswarm.particleGlobalCount
 
 
-# In[235]:
+# In[179]:
 
 np.unique(strainRate_2ndInvariantFn.evaluate(shearbandswarm) < eII_2sig)
 
 
-# In[236]:
+# In[180]:
 
 with shearbandswarm.deform_swarm():
     mask = np.where(strainRate_2ndInvariantFn.evaluate(shearbandswarm) < eII_2sig)
@@ -1171,7 +1261,8 @@ shearbandswarm.update_particle_owners()
 
 with shearbandswarm.deform_swarm():
     mask = np.where((shearbandswarm.particleCoordinates.data[:,1] < ndp.asthenosphere + ndp.notchWidth) | 
-                    (shearbandswarm.particleCoordinates.data[:,1] >  1. - ndp.notchWidth) )
+                    (shearbandswarm.particleCoordinates.data[:,1] >  1. - ndp.notchWidth) |
+                   (shearbandswarm.particleCoordinates.data[:,0] <  minX/1.5))
     shearbandswarm.particleCoordinates.data[mask]= (1e20, 1e20)
 
 shearbandswarm.update_particle_owners()
@@ -1184,7 +1275,7 @@ with shearbandswarm.deform_swarm():
 shearbandswarm.update_particle_owners()
 
 
-# In[237]:
+# In[181]:
 
 shearbandswarm.save(filePath + 'swarm.h5')
 
@@ -1192,7 +1283,7 @@ shearbandswarm.save(filePath + 'swarm.h5')
 
 # ## Calculate and save some metrics
 
-# In[238]:
+# In[182]:
 
 #We'll create a function that based on the strain rate 2-sigma value. 
 #Use this to estimate thickness and average pressure within the shear band
@@ -1211,7 +1302,7 @@ _2sigRest= fn.branching.conditional( conds )
 _out2sigRest= fn.branching.conditional( conds2 ) 
 
 
-# In[239]:
+# In[183]:
 
 sqrtv2 = fn.math.sqrt(fn.math.dot(velocityField,velocityField))
 #sqrtv2x = fn.math.sqrt(fn.math.dot(velocityField[0],velocityField[0]))
@@ -1254,7 +1345,7 @@ dummyFn = _press.evaluate(swarm)
 
 
 
-# In[240]:
+# In[184]:
 
 #_viscMM.min_global(), _viscMM.max_global()
 #_eiiMM.min_global(), _eiiMM.max_global()
@@ -1289,12 +1380,12 @@ pressmin = _press.min_global()
 # 
 # ## scratch
 
-# In[241]:
+# In[185]:
 
 import h5py
 
 
-# In[242]:
+# In[186]:
 
 fname = filePath + 'swarm.h5'
 
@@ -1340,7 +1431,7 @@ comm.barrier()
 print(dydx, const)
 
 
-# In[243]:
+# In[187]:
 
 xs = np.linspace(0, -1., 100)
 newcoords = np.column_stack((xs, dydx*xs + const )) 
@@ -1350,7 +1441,7 @@ swarmCustom = uw.swarm.Swarm(mesh)
 swarmCustom.add_particles_with_coordinates(newcoords )
 
 
-# In[244]:
+# In[188]:
 
 figTest2 = glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 figTest2.append( glucifer.objects.Points(shearbandswarm, pointSize=2.0, colourBar=False) )
@@ -1365,7 +1456,12 @@ figTest2.append( glucifer.objects.Points(swarm,strainRate_2ndInvariantFn, pointS
 figTest2.save_image(imagePath +  "figTest2.png")
 
 
-# In[245]:
+# In[ ]:
+
+
+
+
+# In[206]:
 
 import csv
 
@@ -1382,6 +1478,11 @@ if uw.rank()==0:
         writer.writerow(res1Vals)
         writer.writerow(res2Vals)
         writer.writerow(res3Vals)
+    with open(os.path.join(outputPath, 'params.csv'), 'w') as csvfile:
+        writer = csv.writer(csvfile, delimiter=",")
+        writer.writerow(dp.values())
+        writer.writerow(ndp.values())
+        writer.writerow(md.values())
 
 
 # test = np.array([0.5, 0.5])
@@ -1401,14 +1502,14 @@ if uw.rank()==0:
 # %pylab inline
 # plt.scatter(ys, visc)
 
-# In[246]:
+# In[207]:
 
-angle
+#angle
 
 
-# In[247]:
+# In[208]:
 
-45 - dp.fa/2
+#45 - dp.fa/2
 
 
 # In[ ]:
