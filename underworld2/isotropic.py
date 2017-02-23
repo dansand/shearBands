@@ -202,7 +202,7 @@ comm.Barrier() #Barrier here so no procs run the check in the next cell too earl
 #dp : dimensional paramters
 dp = edict({})
 dp.depth=30*1e3                #domain depth
-dp.asthenosphere=dp.depth/4   #level from bottom of model,
+dp.asthenosphere=dp.depth/4    #level from bottom of model,
 dp.eta1=1e24
 dp.eta2=1e20
 dp.etaMin=1e18
@@ -931,7 +931,7 @@ meshGlobs = np.row_stack((xv.flatten(), yv.flatten())).T
 
 #Calculate the 2-sigma value of the strain rate invariant function (
 #we use this a definition for a shear band)
-eII_sig = eii_mean  + 2.*eii_std
+eII_sig = eii_mean  + 1.5*eii_std
 
 
 # In[179]:
@@ -948,7 +948,7 @@ shearbandswarm.populate_using_layout( layout=shearbandswarmlayout )
 
 # In[181]:
 
-np.unique(strainRate_2ndInvariantFn.evaluate(shearbandswarm) < eII_2sig)
+np.unique(strainRate_2ndInvariantFn.evaluate(shearbandswarm) < eII_sig)
 
 
 # In[11]:
@@ -959,7 +959,7 @@ np.unique(strainRate_2ndInvariantFn.evaluate(shearbandswarm) < eII_2sig)
 # In[166]:
 
 with shearbandswarm.deform_swarm():
-    mask = np.where(strainRate_2ndInvariantFn.evaluate(shearbandswarm) < eII_2sig)
+    mask = np.where(strainRate_2ndInvariantFn.evaluate(shearbandswarm) < eII_sig)
     shearbandswarm.particleCoordinates.data[mask[0]]= (1e20, 1e20)
 
 shearbandswarm.update_particle_owners()    
@@ -997,11 +997,11 @@ shearbandswarm.save(filePath + 'swarm.h5')
 #We'll create a function that based on the strain rate 2-sigma value. 
 #Use this to estimate thickness and average pressure within the shear band
 
-conds = [ ( (strainRate_2ndInvariantFn >  eII_2sig) & (coord[1] > ndp.asthenosphere + ndp.notchWidth), 1.),
+conds = [ ( (strainRate_2ndInvariantFn >  eII_sig) & (coord[1] > ndp.asthenosphere + ndp.notchWidth), 1.),
             (                                           True , 0.) ]
 
 
-conds2 = [ ( (strainRate_2ndInvariantFn <  eII_2sig) & (coord[1] > ndp.asthenosphere + ndp.notchWidth), 1.),
+conds2 = [ ( (strainRate_2ndInvariantFn <  eII_sig) & (coord[1] > ndp.asthenosphere + ndp.notchWidth), 1.),
             (                                           True , 0.) ]
 
 
