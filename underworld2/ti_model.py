@@ -1062,12 +1062,12 @@ for i in range(int(md.maxIts)):
         break
 
 
-# In[ ]:
+# In[54]:
 
 #solver._stokesSLE._cself.curResidual
 
 
-# In[ ]:
+# In[55]:
 
 #%pylab inline
 
@@ -1077,7 +1077,7 @@ for i in range(int(md.maxIts)):
 #ax.set_ylim(0.0005, 1.)
 
 
-# In[ ]:
+# In[56]:
 
 #((20e3*1e-15)*3600*365*24)*100.
 
@@ -1089,12 +1089,12 @@ for i in range(int(md.maxIts)):
 
 # ## Figures
 
-# In[121]:
+# In[57]:
 
 #dp.fa
 
 
-# In[201]:
+# In[59]:
 
 figSinv = glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 
@@ -1443,9 +1443,9 @@ if uw.rank()==0:
         writer.writerow(res3Vals)
     with open(os.path.join(outputPath, 'params.csv'), 'w') as csvfile:
         writer = csv.writer(csvfile, delimiter=",")
-        writer.writerow(dp.values())
-        writer.writerow(ndp.values())
-        writer.writerow(md.values())
+        writer.writerow([dp[i] for i in sorted(dp.keys())]) #this makes sure the params are written in order of the sorted keys (i.e an order we can reproduce)
+        writer.writerow([ndp[i] for i in sorted(ndp.keys())])
+        writer.writerow([md[i] for i in sorted(md.keys())])
 
 
 # test = np.array([0.5, 0.5])
