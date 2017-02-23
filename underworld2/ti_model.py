@@ -231,16 +231,14 @@ dict_names = ['dp.pkl', 'sf.pkl', 'ndp.pkl', 'md.pkl']
 #dp : dimensional paramters
 dp = edict({})
 dp.depth=30*1e3                #domain depth
-dp.asthenosphere=(30.*1e3)/4   #level from bottom of model,
+dp.asthenosphere=dp.depth/4   #level from bottom of model,
 dp.eta1=1e24
 dp.eta2=1e20
 dp.etaMin=1e18
-dp.U0=0.0025/(3600*24*365)     #m/s speigelman et al
+dp.U0=0.0025/(3600*24*365)     #m/s 
 dp.rho=2700.                   #kg/m3
 dp.g=9.81
-dp.cohesion=40e6               #kaus
-dp.cohesion=100e6              #speigelman et al
-dp.cohesion=60e6 
+dp.cohesion=100e6              #
 dp.fa=30.                      #friction angle degrees
 dp.a=1.                        #fraction of the dynamic pressure to allow in the model
 dp.notchWidth = dp.depth/16.
@@ -328,7 +326,7 @@ comm.barrier()
 
 sf = edict({})
 sf.LS = 30*1e3
-sf.eta0 = 1e21
+sf.eta0 = 1e22
 sf.stress = (sf.eta0*dp.U0)/sf.LS
 sf.vel = dp.U0
 sf.density = sf.LS**3

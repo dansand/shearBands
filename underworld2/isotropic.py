@@ -43,7 +43,7 @@
 #    3) There is no thermal component to this notebook and hence no ALE correction for the moving mesh applies to the advection term.
 # 
 
-# In[119]:
+# In[1]:
 
 import numpy as np
 import underworld as uw
@@ -66,7 +66,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[120]:
+# In[2]:
 
 #####
 #Stubborn version number conflicts - For now...
@@ -130,7 +130,7 @@ except:
 # Model name and directories
 # -----
 
-# In[121]:
+# In[3]:
 
 ############
 #Model name 
@@ -157,7 +157,7 @@ else:
                 Model  = farg
 
 
-# In[122]:
+# In[4]:
 
 ###########
 #Standard output directory setup
@@ -193,7 +193,7 @@ comm.Barrier() #Barrier here so no procs run the check in the next cell too earl
 # * If params are passed in as flags to the script, they overwrite 
 # 
 
-# In[123]:
+# In[5]:
 
 ###########
 #Store the physical parameters, scale factors and dimensionless paramters in easyDicts
@@ -202,18 +202,16 @@ comm.Barrier() #Barrier here so no procs run the check in the next cell too earl
 #dp : dimensional paramters
 dp = edict({})
 dp.depth=30*1e3                #domain depth
-dp.asthenosphere=(30.*1e3)/4   #level from bottom of model,
+dp.asthenosphere=dp.depth/4   #level from bottom of model,
 dp.eta1=1e24
 dp.eta2=1e20
 dp.etaMin=1e18
-dp.U0=0.0025/(3600*24*365)     #m/s speigelman et al
+dp.U0=0.0025/(3600*24*365)     #m/s 
 dp.rho=2700.                   #kg/m3
 dp.g=9.81
-dp.cohesion=40e6               #kaus
-dp.cohesion=100e6              #speigelman et al
-dp.cohesion=60e6 
+dp.cohesion=100e6              #
 dp.fa=30.                      #friction angle degrees
-dp.a=1.                        #fraction of the dynamic pressure to allow in the model
+dp.a=1.                        #fraction of the dynamic pressure to include in the yield function
 dp.notchWidth = dp.depth/16.
 
 
@@ -230,7 +228,7 @@ md.maxIts=50
 md.perturb=0 # 0 for material heterogeneity, 1 for cohesion weakening
 
 
-# In[124]:
+# In[6]:
 
 ###########
 #If command line args are given, overwrite the above paramter dictionaries 
@@ -287,7 +285,7 @@ for farg in sys.argv[1:]:
 comm.barrier()
 
 
-# In[125]:
+# In[7]:
 
 #In this code block we map the dimensional paramters to dimensionless, through scaling factors
 
@@ -295,7 +293,7 @@ comm.barrier()
 
 sf = edict({})
 sf.LS = 30*1e3
-sf.eta0 = 1e21
+sf.eta0 = 1e22
 sf.stress = (sf.eta0*dp.U0)/sf.LS
 sf.vel = dp.U0
 sf.density = sf.LS**3
@@ -1194,6 +1192,11 @@ if uw.rank()==0:
 # 
 # %pylab inline
 # plt.scatter(ys, visc)
+
+# In[8]:
+
+sorted(dp.keys())
+
 
 # In[ ]:
 
