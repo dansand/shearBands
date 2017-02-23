@@ -769,7 +769,7 @@ for i in range(int(md.maxIts)):
     
     
     #L2 norm of delta dynamic pressure
-    delP = pressureField - pressureField
+    delP = pressureField - prevPressureField
     p2 = fn.math.dot(delP,  delP)
     _Pr = volumeint(p2)
     delpL2 = np.sqrt(_Pr.evaluate()[0])

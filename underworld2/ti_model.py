@@ -1021,7 +1021,7 @@ for i in range(int(md.maxIts)):
     
     
     #L2 norm of delta dynamic pressure
-    delP = pressureField - pressureField
+    delP = pressureField - prevPressureField
     p2 = fn.math.dot(delP,  delP)
     _Pr = volumeint(p2)
     delpL2 = np.sqrt(_Pr.evaluate()[0])
@@ -1060,31 +1060,6 @@ for i in range(int(md.maxIts)):
     #Converged stopping condition
     if res1 < md.tol:
         break
-
-
-# In[54]:
-
-#solver._stokesSLE._cself.curResidual
-
-
-# In[55]:
-
-#%pylab inline
-
-#fig, ax = plt.subplots()
-#ax.scatter(range(len(resVals)), resVals)
-#ax.set_yscale('log')
-#ax.set_ylim(0.0005, 1.)
-
-
-# In[56]:
-
-#((20e3*1e-15)*3600*365*24)*100.
-
-
-# In[ ]:
-
-
 
 
 # ## Figures
