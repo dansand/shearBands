@@ -931,7 +931,7 @@ meshGlobs = np.row_stack((xv.flatten(), yv.flatten())).T
 
 #Calculate the 2-sigma value of the strain rate invariant function (
 #we use this a definition for a shear band)
-eII_2sig = eii_mean  + 2.*eii_std
+eII_sig = eii_mean  + 2.*eii_std
 
 
 # In[179]:
@@ -949,6 +949,11 @@ shearbandswarm.populate_using_layout( layout=shearbandswarmlayout )
 # In[181]:
 
 np.unique(strainRate_2ndInvariantFn.evaluate(shearbandswarm) < eII_2sig)
+
+
+# In[11]:
+
+#2./1.5
 
 
 # In[166]:
