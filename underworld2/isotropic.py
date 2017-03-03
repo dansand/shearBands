@@ -26,7 +26,7 @@
 # 
 # ### NOTES
 
-# In[63]:
+# In[1]:
 
 import numpy as np
 import underworld as uw
@@ -49,7 +49,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-# In[64]:
+# In[2]:
 
 #####
 #Stubborn version number conflicts - For now...
@@ -63,7 +63,7 @@ except:
 # Model name and directories
 # -----
 
-# In[65]:
+# In[3]:
 
 ############
 #Model name 
@@ -90,7 +90,7 @@ else:
                 Model  = farg
 
 
-# In[66]:
+# In[4]:
 
 ###########
 #Standard output directory setup
@@ -126,7 +126,7 @@ comm.Barrier() #Barrier here so no procs run the check in the next cell too earl
 # * If params are passed in as flags to the script, they overwrite 
 # 
 
-# In[67]:
+# In[5]:
 
 ###########
 #Store the physical parameters, scale factors and dimensionless paramters in easyDicts
@@ -163,7 +163,7 @@ md.perturb=0 # 0 for material heterogeneity, 1 for cohesion weakening
 md.pertSig=1. #sigma for gaussian filter
 
 
-# In[68]:
+# In[6]:
 
 #temp changes, for notebook experimentation
 #if uw.rank()==0:
@@ -181,7 +181,7 @@ md.pertSig=1. #sigma for gaussian filter
 #    dp.eta1*=10.0
 
 
-# In[69]:
+# In[7]:
 
 ###########
 #If command line args are given, overwrite the above paramter dictionaries 
@@ -238,20 +238,21 @@ for farg in sys.argv[1:]:
 comm.barrier()
 
 
-# In[70]:
+# In[8]:
 
 #In this code block we map the dimensional paramters to dimensionless, through scaling factors
 
-#sf : scaling factors
+#sf : scaling factors, 
+#(best that these are not set to dp values)
 
 sf = edict({})
-sf.LS = dp.depth
+sf.LS = 30e3
 sf.eta0 = 1e22
 sf.vel = 0.0025/(3600*24*365)
-sf.stress = (sf.eta0*dp.U0)/sf.LS
+sf.stress = (sf.eta0*sf.vel)/sf.LS
 sf.density = sf.LS**3
 sf.g = dp.g
-sf.rho = (sf.eta0*dp.U0)/(sf.LS**2*dp.g)
+sf.rho = (sf.eta0*sf.vel)/(sf.LS**2*dp.g)
 
 #ndp : non dimensional parameters
 ndp = edict({})
@@ -273,12 +274,12 @@ ndp.a = dp.a
 
 # ## Parameter sanity check
 
-# In[71]:
+# In[ ]:
 
 print('params are:', ndp.U0, ndp.depth, ndp.eta1)
 
 
-# In[72]:
+# In[ ]:
 
 stressRatio = (dp.eta1*dp.U0)/(sf.LS**2*dp.g*dp.rho)
 print(stressRatio )
@@ -714,7 +715,7 @@ def volumeint(Fn = 1., rFn=1.):
 #md.maxIts = 5.
 
 
-# In[ ]:
+# In[94]:
 
 surfaceArea = uw.utils.Integral(fn=1.0,mesh=mesh, integrationType='surface', surfaceIndexSet=top)
 surfacePressureIntegral = uw.utils.Integral(fn=pressureField, mesh=mesh, integrationType='surface', surfaceIndexSet=top)
@@ -722,7 +723,7 @@ surfacePressureIntegral = uw.utils.Integral(fn=pressureField, mesh=mesh, integra
 (area,) = surfaceArea.evaluate()
 
 
-# In[ ]:
+# In[95]:
 
 #The underworld Picard interation applies the following residual (SystemLinearEquations.c)
 
@@ -823,7 +824,7 @@ for i in range(int(md.maxIts)):
         break
 
 
-# In[ ]:
+# In[96]:
 
 #%pylab inline
 
@@ -833,19 +834,19 @@ for i in range(int(md.maxIts)):
 #ax.set_ylim(0.0005, 1.)
 
 
-# In[ ]:
+# In[97]:
 
 velocityField.fn_gradient.evaluate(mesh)[0].shape
 
 
-# In[ ]:
+# In[98]:
 
 #p1 = pressureField
 #p2 = -((2.0/3.*viscosityFn + ndp.lam) * (velocityField.fn_gradient[0] + velocityField.fn_gradient[3]))
 #div = (velocityField.fn_gradient[0] + velocityField.fn_gradient[3])
 
 
-# In[ ]:
+# In[99]:
 
 #[1./i for i in [1.0, 0.8, 0.6, 0.4, 0.2, 0.1]]
 
@@ -857,7 +858,7 @@ velocityField.fn_gradient.evaluate(mesh)[0].shape
 
 
 
-# In[ ]:
+# In[107]:
 
 figComp = glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 figComp.append( glucifer.objects.Points(swarm,p2, pointSize=2.0) )
@@ -865,7 +866,7 @@ figComp.append( glucifer.objects.Points(swarm,p2, pointSize=2.0) )
 #figComp.show()
 
 
-# In[ ]:
+# In[108]:
 
 #figSinv = glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 figSinv = glucifer.Figure( figsize=(1600,400) )
@@ -878,7 +879,7 @@ figSinv .append( glucifer.objects.Points(swarm,strainRate_2ndInvariantFn, pointS
 figSinv.show()
 
 
-# In[ ]:
+# In[109]:
 
 figVisc = glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 
@@ -891,7 +892,7 @@ figVisc.append( glucifer.objects.Points(swarm, viscosityFn, pointSize=2.0, logSc
 figVisc.show()
 
 
-# In[ ]:
+# In[110]:
 
 figPres= glucifer.Figure( figsize=(1600,400), boundingBox=((-2.0, 0.0, 0.0), (2.0, 1.0, 0.0)) )
 
@@ -905,19 +906,19 @@ figPres.append( glucifer.objects.Points(swarm, pressureField, pointSize=2.0))
 figPres.show()
 
 
-# In[ ]:
+# In[104]:
 
 #pressureField.data.min() - pressureField.data.max()
 
 
-# In[ ]:
+# In[105]:
 
 #figSinv.save_image(imagePath + "figSinv.png")
 figVisc.save_image(imagePath +  "figVisc.png")
 figPres.save_image(imagePath + "figPres.png")
 
 
-# In[ ]:
+# In[106]:
 
 velocityField.save(filePath + "vel.h5")
 pressureField.save(filePath + "pressure.h5")
