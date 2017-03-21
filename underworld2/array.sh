@@ -6,7 +6,7 @@ do
    do
       for c in 64 96
       do
-         #docker run -v $PWD:/workspace  -i -t --rm dansand/underworld2-dev mpirun -np 16 python isotropic.py F $counter dp.asthenosphere*=$a md.res=$c dp.fa*=$b
+         #docker run -v $PWD:/workspace  -i -t --rm dansand/underworld2-dev mpirun -np 16 python isotropic.py F $counter dp.asthenosphere*=$a md.res=$c dp.fa=$b
          echo $counter $a $b $c
          let counter=counter+1
       done
