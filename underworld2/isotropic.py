@@ -676,7 +676,7 @@ viscosityFn  = fn.branching.map( fn_key = materialVariable,
 #velocityField.evaluate(iWalls)
 
 
-# In[41]:
+# In[109]:
 
 stokes = uw.systems.Stokes(    velocityField = velocityField, 
                                pressureField = pressureField,
@@ -694,19 +694,27 @@ solver = uw.systems.Solver( stokes )
 
 
 
-solver.set_inner_method("mumps")
-if md.pen:          #use penalty method
-    solver.set_penalty(md.pen) 
-solver.options.scr.ksp_rtol = 1.0e-7
-solver.options.scr.ksp_rtol = 1.0e-4
+#solver.set_inner_method("mumps")
+#if md.pen:          #use penalty method
+#    solver.set_penalty(md.pen) 
+#solver.options.scr.ksp_rtol = 1.0e-7
+#solver.options.scr.ksp_rtol = 1.0e-4
 
 
 
 
+if md.pen:
+    solver.set_inner_method("mumps")
+    solver.options.scr.ksp_type="cg"
+    solver.set_penalty(1.0e7)
+    solver.options.scr.ksp_rtol = 1.0e-4
 
-# In[42]:
 
-stokes.eqResiduals
+
+
+# In[108]:
+
+#md.pen
 
 
 # ## Manual Picard iteration
